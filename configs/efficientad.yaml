@@ -1,0 +1,63 @@
+general:
+  seed: 42
+  device: cuda              # auto | cuda | cpu
+
+paths:
+  output_dir: output/
+  teacher_weights:
+    small: pretrained/teacher/teacher_small.pth
+    medium: pretrained/teacher/teacher_medium.pth
+  checkpoint: pretrained/efficientad/efficientad_small_step_40000_2026-07-06_16-04-24.pth
+
+dataset:
+  name: shearography
+  subdataset: null  # meta data
+  image_size: 256
+  root: datasets/shearography/plassmann
+  splits:
+    train: train
+    test: test
+    val: val
+    map_norm: null
+  normal_subdirs: [good_clean, good_noisy, good_stripes]
+
+model:
+  size: small                   # model variant (small | medium)
+  out_channels: 384             # number of output feature channels used by student/teacher
+
+training:
+  steps: 70000                  # total number of training iterations (not epochs)
+  batch_size: 1                 # number of images per training step
+  learning_rate: 1e-4           # initial learning rate for optimizer
+  weight_decay: 1e-5            # L2 regularization strength
+  lr_decay:
+    step: 66500                 # step at which learning rate is changed
+    new_value: 1e-5             # new learning rate after decay step
+  imagenet_penalty:
+    enabled: true               # whether to apply ImageNet-based penalty loss during training
+    path: datasets/imagenet/val.X
+  hard_mining_quantile: 0.999   # quantile threshold for hard example mining (higher = fewer, harder samples)
+  normalization:
+    q_start: 0.9                # lower quantile for map normalization (used during evaluation)
+    q_end: 0.995                # upper quantile for map normalization
+  dataloader:
+    num_workers: 4              # number of parallel workers for data loading
+    pin_memory: true            # speed up host→GPU transfer (only relevant for CUDA)
+  logging:
+    log_interval: 20            # frequency (in steps) for printing training loss
+    eval_interval: 5000         # frequency (in steps) for running intermediate evaluation
+
+inference:
+  warmup: 10                    # number of initial forward passes ignored for timing
+  save_component_maps: false
+  image_level:
+    threshold: 0.65             # threshold for classifying an image as normal or anomalous
+  pixel_level:                  # set either score_quantile or score_threshold (not both)
+    quantile: null              # quantile for pixel-wise anomaly map thresholding
+    threshold: 0.52             # fixed threshold (use instead of quantile)
+  postprocessing:
+    min_polygon_area: 1000      # minimum area (in pixels) for detected regions to be kept
+    morph_kernel_size: 3        # kernel size for morphological operations
+    close_iterations: 50        # number of morphological closing iterations (fills small holes)
+    open_iterations: 5          # number of morphological opening iterations (removes small noise)
+    epsilon_factor: 0.004       # factor for contour approximation (simplifies polygon shapes)
